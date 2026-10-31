@@ -1,0 +1,9 @@
+DROP TABLE public.agent_memory_events;
+DROP TABLE public.agent_memory_cache;
+DROP TABLE public.agent_memory_active_index;
+DROP TABLE public.agent_memory_dependencies;
+DROP TABLE public.agent_memory_revisions;
+DROP TABLE public.agent_semantic_memories;
+DROP TABLE public.agent_memory_jobs;
+DROP TABLE public.agent_memory_sources;
+DROP TABLE public.agent_memory_namespaces;

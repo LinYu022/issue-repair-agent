@@ -1,0 +1,19 @@
+# Build frontend with the committed pnpm lock before building this image.
+# The named wheels context contains only public wheels verified against uv.lock.
+ARG PYTHON_BASE=python@sha256:1aaa65a85fda306ffb8b910824d4e93bdce61e212c7e87168123ea3073b41a1a
+FROM ${PYTHON_BASE}
+COPY --from=wheels / /wheels/
+COPY environments/workbench-requirements.txt /tmp/requirements.txt
+RUN python -m pip install --no-index --find-links=/wheels --require-hashes -r /tmp/requirements.txt && rm -rf /wheels
+WORKDIR /opt/issue-agent
+COPY app/ app/
+COPY domain/ domain/
+COPY runtime/ runtime/
+COPY adapters/ adapters/
+COPY tools/ tools/
+COPY evals/ evals/
+COPY scripts/ scripts/
+COPY migrations/ migrations/
+USER 1000:1000
+EXPOSE 8018
+CMD ["python", "-m", "scripts.serve_product", "--host", "0.0.0.0", "--data", "/data/workbench.json", "--credentials", "/data/credentials.json"]

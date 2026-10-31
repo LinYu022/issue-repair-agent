@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.local/
+.env
+.env.*
+!.env.example
+artifacts/
+workspaces/
+exercise.local.json
+.ruff_cache/
+.mypy_cache/
+node_modules/
+app/web/dist/

@@ -1,0 +1,15 @@
+{
+  "name": "issue-repair-workbench",
+  "private": true,
+  "version": "0.18.0",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

@@ -1,0 +1,10 @@
+# Equivalent conventional build; BuildKit metadata resolution can require network.
+# The local reproduction command instead composes the OCI layer offline.
+ARG BASE_IMAGE=python@sha256:1aaa65a85fda306ffb8b910824d4e93bdce61e212c7e87168123ea3073b41a1a
+FROM ${BASE_IMAGE}
+COPY runner_worker.py /opt/agent/runner_worker.py
+COPY oracle_observer.py /opt/evaluator/oracle_observer.py
+RUN chmod 0555 /opt/agent/runner_worker.py
+USER 65532:65532
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/python", "-I", "-S", "/opt/agent/runner_worker.py"]
