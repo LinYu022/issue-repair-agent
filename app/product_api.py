@@ -23,6 +23,7 @@ from domain.plans import ApprovalDecision, ControlRequest, document_hash
 from domain.procedural_memory import SkillDecision
 from domain.recovery import RecoveryDecision, RecoveryRequest
 from runtime.task_state import RunLimitExceeded
+from runtime.trace_export import export_trace
 from tools.readonly_workspace import WorkspaceRefused
 
 
@@ -86,6 +87,11 @@ class ProductHost:
                 "public_complete": bool(loop.report and loop.report["completion_verified"]),
                 "recovery": loop.recovery_info,
                 "memory": memory_evidence(loop.session.records, loop.context_manager.settings),
+                "runtime_v2_trace": (
+                    export_trace(loop.run_log, loop.run_id)
+                    if getattr(loop, "run_log", None) is not None
+                    else None
+                ),
             }
 
 
@@ -155,11 +161,13 @@ def create_product_app(host: ProductHost, *, static_root: Path | None = None):
     @app.get("/api/tasks")
     def tasks(authorization: str | None = Header(default=None)):
         require(authorization)
-        return [
-            {"id": k, "issue": v["issue"], "read_only": v["read_only"], "evidence_kind": v["evidence_kind"]}
-            for k in [*host.archives, *host.loops]
-            for v in [host.task_view(k)]
-        ]
+        return invoke(
+            lambda: [
+                {"id": k, "issue": v["issue"], "read_only": v["read_only"], "evidence_kind": v["evidence_kind"]}
+                for k in [*host.archives, *host.loops]
+                for v in [host.task_view(k)]
+            ]
+        )
 
     @app.get("/api/tasks/{key}")
     def task(key: str, authorization: str | None = Header(default=None)):

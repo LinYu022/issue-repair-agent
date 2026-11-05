@@ -20,7 +20,7 @@ from domain.failure_diagnosis import (
 )
 from domain.failure_diagnosis import FailureCategory as C
 from domain.plans import document_hash
-from domain.replanning import POLICY_TABLE, PolicyDecision, ReplanSettings
+from domain.replanning import POLICY_TABLE, PolicyDecision, ReplanRecord, ReplanSettings
 from domain.tasks import TaskLifecycle
 from runtime.diagnostic_evidence import DiagnosticEvidenceStore, environment_hash
 from runtime.failure_classifier import classify_failure
@@ -54,6 +54,11 @@ class RepeatDetector:
             self.evidence_epoch += 1
         old, count, epoch = self.seen.get(key, ("", 0, -1))
         self.seen[key] = (value, count + 1 if old == value and epoch == self.evidence_epoch else 1, self.evidence_epoch)
+
+
+def validate_replan(record: ReplanRecord) -> ReplanRecord:
+    """Single runtime gate used by controllers before accepting a revised plan."""
+    return ReplanRecord.model_validate(record)
 
 
 class Replanner:
@@ -227,6 +232,13 @@ class Replanner:
                 previous.body.candidates,
             ):
                 raise WorkspaceRefused("replan_requires_explicit_strategy_or_hypothesis_change")
+
+    def record_replan(self, record: ReplanRecord) -> ReplanRecord:
+        if not self.enabled:
+            raise WorkspaceRefused("replan_policy_disabled")
+        validate_replan(record)
+        self.loop._event("replan_record", record=record.model_dump(mode="json"))
+        return record
 
     def plan_saved(self, draft, previous):
         if not self.enabled:

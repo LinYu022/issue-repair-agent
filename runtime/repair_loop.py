@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Literal, Protocol
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
@@ -23,6 +23,7 @@ from domain.plans import ControlRequest, PlanBody, PlanProposal, path_subset
 from domain.procedural_memory import PlanSkill
 from domain.repair_loop import ACTION, Finish, InvokeTool, NeedInput, ProposePlan, RepairRegistration, ReplaceText
 from domain.replanning import ReplanSettings
+from domain.run_events import EventType, RunEvent
 from domain.tasks import TaskLifecycle
 from domain.workspace_tools import DiffArgs, TaskPackage, WorkspaceToolRequest
 from evals.patching import apply_patch
@@ -31,6 +32,7 @@ from runtime.plan_control import PlanController
 from runtime.public_reproducer import outcome as public_probe_outcome
 from runtime.public_reproducer import verify as verify_public_probe
 from runtime.replanning import Replanner
+from runtime.run_log import RunLog
 from runtime.task_state import RunLimitExceeded
 from tools.readonly_workspace import WorkspaceRefused
 from tools.workspace_files import sha, workspace_version
@@ -111,8 +113,12 @@ class RepairLoop:
         context_settings: ContextSettings | None = None,
         *,
         reopen_records: bool = False,
+        run_log: RunLog | None = None,
     ):
         self.controller, self.session = controller, controller.session
+        self.run_log = run_log
+        self.run_id = uuid4()
+        self._event_parent: UUID | None = None
         self.state_lock = threading.RLock()
         self.package, self.registration = package, registration
         baseline = {entry.path: entry.text for entry in package.files}
@@ -175,6 +181,8 @@ class RepairLoop:
         self.context_manager = ContextManager(
             self, context_settings or ContextSettings(max_context_bytes=registration.max_context_bytes)
         )
+        if self.run_log is not None:
+            self._event("run_created", manifest_hash=None)
 
     def _event(self, kind: str, **data):
         event = {
@@ -187,6 +195,36 @@ class RepairLoop:
         path.parent.mkdir(exist_ok=True)
         path.write_text(json.dumps(event, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         self.events.append(event)
+        if self.run_log is not None:
+            event_map: dict[str, EventType] = {
+                "run_created": "RunCreated", "model_observation": "ActionProposed", "tool_observation": "ToolObservationReceived", "strategy_decision": "FailureClassified",
+                "plan_proposed": "PlanProposed", "plan_approved": "PlanApproved", "action_proposed": "ActionProposed",
+                "tool_call_prepared": "ToolCallPrepared", "tool_call_started": "ToolCallStarted",
+                "failure_classified": "FailureClassified",
+                "replan_applied": "ReplanTriggered", "replan_record": "ReplanTriggered", "context_built": "ContextBuilt", "context_compacted": "ContextCompacted",
+                "checkpoint_committed": "CheckpointCommitted", "paused": "RunPaused", "resumed": "RunResumed",
+                "stopped": "RunStopped", "completed": "RunCompleted", "final_export": "RunCompleted",
+            }
+            event_type = event_map.get(kind)
+            if event_type is not None and self.session.task.workspace_version is not None:
+                record = RunEvent(
+                    run_id=self.run_id,
+                    parent_event_id=self._event_parent,
+                    sequence_no=len(self.run_log.events(self.run_id)) + 1,
+                    event_type=event_type,
+                    task_version=str(self.session.task.revision_id or self.session.task.task_id),
+                    authorization_revision=1,
+                    context_revision=getattr(getattr(self, "context_manager", None), "revision", 0),
+                    workspace_version=self.session.task.workspace_version,
+                    payload=data,
+                    actor="controller",
+                    status="recorded",
+                )
+                self.run_log.append(record)
+                self._event_parent = record.event_id
+                event_path = self.root / "run-events" / f"{record.sequence_no:06}.json"
+                event_path.parent.mkdir(parents=True, exist_ok=True)
+                event_path.write_text(record.model_dump_json(indent=2) + "\n", encoding="utf-8")
         if hasattr(self, "context_manager"):
             self.context_manager.event(event)
 

@@ -82,7 +82,7 @@ def authorize_read(
         raise WorkspaceRefused("grant_revoked_or_expired")
     parts = relative_parts(request.path, allow_root=request.operation == "list")
     if request.operation not in grant.operations or not any(
-        parts[: len(prefix)] == prefix for prefix in (relative_parts(path) for path in grant.paths)
+        parts[: len(prefix)] == prefix for prefix in (relative_parts(path, allow_root=True) for path in grant.paths)
     ):
         raise WorkspaceRefused("path_or_operation_not_granted")
     return grant
@@ -114,7 +114,7 @@ class ReadOnlyWorkspace:
 
     def execute(self, request: ReadRequest) -> dict[str, Any]:
         grant = self.authorize(request)
-        parts = relative_parts(request.path)
+        parts = relative_parts(request.path, allow_root=request.operation == "list")
         try:
             descriptor = open_root(self.root)
             try:
@@ -128,11 +128,14 @@ class ReadOnlyWorkspace:
                 if request.operation == "read":
                     result = self.read_file(descriptor, parts[-1], grant)
                 else:
-                    child = os.open(parts[-1], directory_flags(), dir_fd=descriptor)
-                    try:
-                        result = self.list_directory(child, grant, parts)
-                    finally:
-                        os.close(child)
+                    if not parts:
+                        result = self.list_directory(descriptor, grant, parts)
+                    else:
+                        child = os.open(parts[-1], directory_flags(), dir_fd=descriptor)
+                        try:
+                            result = self.list_directory(child, grant, parts)
+                        finally:
+                            os.close(child)
             finally:
                 os.close(descriptor)
         except OSError as exc:

@@ -1,6 +1,7 @@
 """Whitelist export from a trusted snapshot, with independent descriptor-safe copies."""
 
 import hashlib
+import shutil
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -52,8 +53,10 @@ def materialize_package(parent: Path, package: TaskPackage, task_id: UUID) -> tu
     parent_fd = open_root(parent)
     identity = WorkspaceIdentity(task_id, uuid4(), package.task.repo, package.task.base_commit)
     name = str(identity.workspace_id)
+    created = False
     try:
         os.mkdir(name, mode=0o700, dir_fd=parent_fd)
+        created = True
         root = os.open(name, directory_flags(), dir_fd=parent_fd)
         try:
             for entry in package.files:
@@ -85,6 +88,13 @@ def materialize_package(parent: Path, package: TaskPackage, task_id: UUID) -> tu
                     os.close(descriptor)
         finally:
             os.close(root)
+    except BaseException:
+        if created:
+            try:
+                shutil.rmtree(parent / name)
+            except OSError:
+                pass
+        raise
     finally:
         os.close(parent_fd)
     return parent / name, identity

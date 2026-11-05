@@ -12,3 +12,47 @@ exercise.local.json
 .mypy_cache/
 node_modules/
 app/web/dist/
+
+# Local runtime and test output
+*.log
+*.stderr
+*.stdout
+*.stderr.bin
+*.stdout.bin
+*.trace
+*.part
+*.orig
+*.rej
+*~
+*.swp
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+playwright-report/
+test-results/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Local credentials and database connection material
+.local/**/credentials.json
+.local/**/connection.json
+.local/**/secrets.*
+
+# Local task inputs and generated credentials
+/data/
+/tasks/
+/inputs/
+/runs/
+/wheels/
+/dist/
+credentials.json
+connection.json
+*.pem
+*.key
+*.p12
+*.pfx
+.idea/
+.vscode/

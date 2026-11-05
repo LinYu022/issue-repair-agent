@@ -81,7 +81,7 @@ def load_task(path, max_calls):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", type=Path, default=Path("examples/quickstart/task.json"))
+    parser.add_argument("--task", type=Path, required=True)
     parser.add_argument("--image", default="issue-agent-runner:latest")
     parser.add_argument("--model", default=os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"))
     parser.add_argument("--base-url", default=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))

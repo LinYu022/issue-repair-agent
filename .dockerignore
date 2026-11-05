@@ -12,7 +12,8 @@ app/web/src/
 !tools/
 !tools/**
 !evals/
-!evals/**
+!evals/patching.py
+!evals/__init__.py
 !scripts/
 !scripts/**
 !migrations/

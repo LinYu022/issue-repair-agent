@@ -75,7 +75,7 @@ class ReadGrant:
         if type(self.paths) is not tuple or not self.paths or len(set(self.paths)) != len(self.paths):
             raise ValueError("explicit_unique_grant_paths_required")
         for path in self.paths:
-            relative_parts(path)
+            relative_parts(path, allow_root=True)
         if type(self.operations) is not frozenset or not self.operations or not self.operations <= {"list", "read"}:
             raise ValueError("read_only_operations_required")
         if (

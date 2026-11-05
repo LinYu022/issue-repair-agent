@@ -4,8 +4,8 @@ services:
     ports:
       - "127.0.0.1:8018:8018"
     volumes:
-      - ${WORKBENCH_DATA:-./.local/run/workbench.json}:/data/workbench.json:ro
-      - ${WORKBENCH_CREDENTIALS:-./.local/workbench/credentials.json}:/data/credentials.json:ro
+      - ./.local/p2-18/workbench.json:/data/workbench.json:ro
+      - ./.local/p2-18/credentials.json:/data/credentials.json:ro
     read_only: true
     tmpfs:
       - /tmp

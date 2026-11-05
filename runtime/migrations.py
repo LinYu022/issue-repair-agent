@@ -69,3 +69,10 @@ def migrate(connection: Connection, direction: Literal["up", "down"]) -> int:
             connection.execute("DELETE FROM public.agent_schema_migrations WHERE version = 1")
             return 0
         return version
+
+
+def migrate_runtime(connection: Connection, direction: Literal["up", "down"] = "up") -> int:
+    """Install or roll back the independent Runtime v2 schema (0010-0015)."""
+    from runtime.runtime_migrations import migrate_runtime as _migrate_runtime
+
+    return _migrate_runtime(connection, direction)

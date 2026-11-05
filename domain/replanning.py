@@ -1,6 +1,6 @@
 """Trusted opt-in policy configuration, not a model-assigned capability."""
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -60,6 +60,38 @@ class PolicyDecision(Contract):
     reason: str
     change: str
     permissions_expanded: Literal[False] = False
+
+
+class ReplanRecord(Contract):
+    """Evidence-backed change of strategy; repeated plans are rejected."""
+
+    trigger_event_id: UUID
+    failure_labels: tuple[str, ...] = Field(min_length=1)
+    old_hypothesis_revision: int = Field(ge=0, strict=True)
+    new_hypothesis_revision: int = Field(ge=0, strict=True)
+    old_strategy: dict[str, Any]
+    new_strategy: dict[str, Any]
+    discriminating_check: str = Field(min_length=1, max_length=2000)
+    expected_information_gain: float = Field(ge=0, le=1)
+    budget_delta: int = 0
+    stop_if_no_change: str = Field(min_length=1, max_length=1000)
+    policy_hash: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def strategy_must_change(self):
+        changed_keys = {
+            key
+            for key in (
+                "candidate_locations", "tool_type", "validation_target", "context_sources",
+                "execution_order", "stop_condition",
+            )
+            if self.old_strategy.get(key) != self.new_strategy.get(key)
+        }
+        if not changed_keys:
+            raise ValueError("replan_requires_strategy_change")
+        if self.new_hypothesis_revision < self.old_hypothesis_revision:
+            raise ValueError("replan_hypothesis_revision_must_advance")
+        return self
 
 
 # This inspectable table specifies decisions, not shell commands or permissions.

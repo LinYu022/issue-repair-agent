@@ -85,6 +85,8 @@ class DeepSeekClient:
                 return json.loads(raw)
         except HTTPError as exc:
             raise ModelServiceError("model_http_" + str(exc.code)) from None
+        except json.JSONDecodeError:
+            raise ModelServiceError("model_response_invalid") from None
         except (URLError, OSError):
             raise ModelServiceError("model_transport_failed") from None
 
@@ -109,14 +111,28 @@ class DeepSeekClient:
                 **({"stop": self.stop} if self.stop else {}),
             },
         )
+        if not isinstance(data, dict):
+            raise ModelServiceError("model_response_invalid")
         usage = data.get("usage", {})
-        self.total_tokens += usage.get("total_tokens", 0)
+        choices = data.get("choices")
+        if (
+            not isinstance(usage, dict)
+            or not isinstance(choices, list)
+            or not choices
+            or not isinstance(choices[0], dict)
+            or not isinstance(choices[0].get("message"), dict)
+            or not isinstance(choices[0]["message"].get("content"), str)
+            or ("total_tokens" in usage and type(usage["total_tokens"]) is not int)
+        ):
+            raise ModelServiceError("model_response_invalid")
+        total_tokens = usage.get("total_tokens", 0)
+        self.total_tokens += total_tokens
         self.usage.append(
             {
                 "call_index": self.calls,
                 "response_model": data.get("model"),
                 "usage": usage,
-                "finish_reason": data["choices"][0]["finish_reason"],
+                "finish_reason": choices[0].get("finish_reason"),
             }
         )
-        return data["choices"][0]["message"]["content"]
+        return choices[0]["message"]["content"]

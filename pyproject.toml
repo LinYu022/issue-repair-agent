@@ -12,25 +12,3 @@ dependencies = [
 
 [tool.uv]
 package = false
-
-[dependency-groups]
-dev = [
-    "httpx2==2.16.0",
-    "mypy==1.18.2",
-    "ruff==0.14.2",
-]
-
-[tool.ruff]
-target-version = "py312"
-line-length = 120
-extend-exclude = [".local", ".venv", "workspaces", "artifacts"]
-
-[tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I"]
-
-[tool.mypy]
-python_version = "3.12"
-files = ["domain", "adapters", "app", "runtime", "tools", "evals"]
-check_untyped_defs = true
-warn_unused_ignores = true
-cache_dir = ".local/mypy-cache"

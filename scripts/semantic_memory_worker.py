@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import os
 from uuid import UUID, uuid4
 
 from runtime.execution_store import PostgresExecutionStore
@@ -14,10 +13,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lease-seconds", type=int, default=15)
     parser.add_argument("--job-id", type=UUID, help="Optionally claim only this already registered job")
-    parser.add_argument(
-        "--claim-only", action="store_true", help="Exit after persisting ownership, for controller fault probes"
-    )
-    parser.add_argument("--crash-before-commit", action="store_true", help="Controller-only semantic crash fixture")
     args = parser.parse_args()
     try:
         store = SemanticStore(PostgresExecutionStore(database_url()))
@@ -25,15 +20,7 @@ def main():
         if lease is None:
             print(json.dumps({"job": "idle"}))
             return 0
-        if args.claim_only:
-            print(json.dumps({"lease": lease}, default=str))
-            return 0
-
-        def fault(stage):
-            if args.crash_before_commit:
-                os._exit(91)
-
-        result = store.finish_candidate(lease, fault=fault)
+        result = store.finish_candidate(lease)
         print(json.dumps({"job": "candidate_created", "memory_id": result["memory_id"], "state": result["state"]}))
         return 0
     except (ValueError, OSError):
